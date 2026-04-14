@@ -502,16 +502,37 @@
                 toast: { show: false, message: '' },
                 
                 // Menú
-                entradas: JSON.parse(localStorage.getItem('restaurante_entradas')) || [],
-                segundos: JSON.parse(localStorage.getItem('restaurante_segundos')) || [],
+                entradas: [],
+                segundos: [],
                 nuevaEntrada: '',
                 nuevoSegundo: '',
                 
                 // Pedidos Locales
-                pedidos: JSON.parse(localStorage.getItem('restaurante_pedidos')) || [],
+                pedidos: [],
                 busqueda: '',
                 
                 isSubmitting: false,
+
+                init() {
+                    try {
+                        const savedPedidos = localStorage.getItem('restaurante_pedidos');
+                        if (savedPedidos) { this.pedidos = JSON.parse(savedPedidos); }
+                    } catch (e) { console.error(e); this.pedidos = []; }
+                    
+                    try {
+                        const savedEntradas = localStorage.getItem('restaurante_entradas');
+                        if (savedEntradas) { this.entradas = JSON.parse(savedEntradas); }
+                    } catch (e) { console.error(e); this.entradas = []; }
+                    
+                    try {
+                        const savedSegundos = localStorage.getItem('restaurante_segundos');
+                        if (savedSegundos) { this.segundos = JSON.parse(savedSegundos); }
+                    } catch (e) { console.error(e); this.segundos = []; }
+
+                    if (!Array.isArray(this.pedidos)) this.pedidos = [];
+                    if (!Array.isArray(this.entradas)) this.entradas = [];
+                    if (!Array.isArray(this.segundos)) this.segundos = [];
+                },
 
                 // Formulario
                 form: {
