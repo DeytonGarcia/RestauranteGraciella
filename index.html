@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Pedidos - Restaurante</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#ea580c', // orange-600
+                        secondary: '#ffedd5', // orange-100
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Animaciones suaves */
+        [x-cloak] { display: none !important; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        body { background-color: #f8fafc; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased" x-data="appData">
+
+    <div class="flex h-[100dvh] overflow-hidden bg-slate-50">
+        
+        <!-- Sidebar Navigation (Desktop Only) -->
+        <aside class="w-72 bg-white shadow-[4px_0_24px_rgba(0,0,0,0.02)] hidden md:flex flex-col z-10 shrink-0 border-r border-slate-100">
+            <div class="p-8 border-b border-slate-100">
+                <h1 class="text-2xl font-black text-primary flex items-center gap-3">
+                    <i class="fa-solid fa-burger"></i> Restaurante de Graciela
+                </h1>
+                <p class="text-sm text-slate-500 mt-1">Gestión de menús y pedidos</p>
+            </div>
+            
+            <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+                <button @click="tab = 'registrar'" :class="tab === 'registrar' ? 'bg-secondary text-primary shadow-sm' : 'hover:bg-slate-50 text-slate-600'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold text-left">
+                    <i class="fa-solid fa-pen-to-square w-5 text-center"></i> Registrar Pedido
+                </button>
+                <button @click="tab = 'pedidos'" :class="tab === 'pedidos' ? 'bg-secondary text-primary shadow-sm' : 'hover:bg-slate-50 text-slate-600'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold text-left border border-transparent" :class="tab==='pedidos' ? 'border-orange-200' : ''">
+                    <i class="fa-solid fa-clipboard-list w-5 text-center"></i> Lista de Pedidos
+                    <span class="ml-auto bg-primary text-white text-xs py-0.5 px-2 rounded-full shadow-sm" x-show="pedidos.length > 0" x-text="pedidos.length"></span>
+                </button>
+                <button @click="tab = 'estadisticas'" :class="tab === 'estadisticas' ? 'bg-secondary text-primary shadow-sm' : 'hover:bg-slate-50 text-slate-600'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold text-left border border-transparent" :class="tab==='estadisticas' ? 'border-orange-200' : ''">
+                    <i class="fa-solid fa-chart-pie w-5 text-center"></i> Menú de Hoy (Stats)
+                </button>
+                <button @click="tab = 'menu'" :class="tab === 'menu' ? 'bg-secondary text-primary shadow-sm' : 'hover:bg-slate-50 text-slate-600'" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold text-left border border-transparent" :class="tab==='menu' ? 'border-orange-200' : ''">
+                    <i class="fa-solid fa-utensils w-5 text-center"></i> Configurar Menú
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Mobile Bottom Nav -->
+        <nav class="md:hidden fixed bottom-0 w-full bg-white border-t border-slate-200 z-50 flex justify-around p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-4px_10px_-1px_rgba(0,0,0,0.05)]">
+            <button @click="tab = 'registrar'" :class="tab === 'registrar' ? 'text-primary' : 'text-slate-400 hover:text-slate-600'" class="flex flex-col items-center p-2 rounded w-1/4 transition-colors">
+                <i class="fa-solid fa-pen-to-square text-xl mb-1"></i>
+                <span class="text-[10px] font-bold">Registrar</span>
+            </button>
+            <button @click="tab = 'pedidos'" :class="tab === 'pedidos' ? 'text-primary' : 'text-slate-400 hover:text-slate-600'" class="flex flex-col items-center p-2 rounded w-1/4 relative transition-colors">
+                <i class="fa-solid fa-clipboard-list text-xl mb-1"></i>
+                <span class="text-[10px] font-bold">Pedidos</span>
+                <span class="absolute top-1 right-[10%] sm:right-[20%] bg-primary shadow-md text-white text-[9px] py-0.5 px-1.5 rounded-full font-bold" x-show="pedidos.length > 0" x-text="pedidos.length"></span>
+            </button>
+            <button @click="tab = 'estadisticas'" :class="tab === 'estadisticas' ? 'text-primary' : 'text-slate-400 hover:text-slate-600'" class="flex flex-col items-center p-2 rounded w-1/4 transition-colors">
+                <i class="fa-solid fa-chart-pie text-xl mb-1"></i>
+                <span class="text-[10px] font-bold">Stats</span>
+            </button>
+            <button @click="tab = 'menu'" :class="tab === 'menu' ? 'text-primary' : 'text-slate-400 hover:text-slate-600'" class="flex flex-col items-center p-2 rounded w-1/4 transition-colors">
+                <i class="fa-solid fa-utensils text-xl mb-1"></i>
+                <span class="text-[10px] font-bold">Menú</span>
+            </button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto w-full relative pb-28 md:pb-0">
+            
+            <!-- Mobile Top Header -->
+            <div class="md:hidden bg-white p-4 border-b border-slate-100 flex items-center justify-between sticky top-0 z-40 shadow-sm">
+                <h1 class="text-xl font-black text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-burger text-primary"></i> Graciela
+                </h1>
+                <div class="text-[10px] uppercase tracking-wider font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">Sistema POS</div>
+            </div>
+
+            <!-- Vista: Registrar Pedido -->
+            <div x-show="tab === 'registrar'" x-transition.opacity class="p-4 md:p-8 max-w-4xl mx-auto w-full">
+                <div class="mb-6 md:mb-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-800" x-text="modoEdicion ? 'Editar Pedido' : 'Registrar Nuevo Pedido'"></h2>
+                    <p class="text-sm md:text-base text-slate-500 mt-1 md:mt-2" x-text="modoEdicion ? 'Modifica los datos del pedido seleccionado.' : 'Ingresa los datos del cliente y selecciona el menú del día.'"></p>
+                </div>
+
+                <div class="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-slate-200 p-5 md:p-8">
+                    <form @submit.prevent="registrarPedido" class="space-y-6">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Datos del Cliente -->
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-2">Nombre del Cliente</label>
+                                <input type="text" x-model="form.nombre" required class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-slate-400" placeholder="Ej. Juan Pérez">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-2">Apellido</label>
+                                <input type="text" x-model="form.apellido" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-slate-400" placeholder="Ej. Pérez">
+                            </div>
+
+                            <!-- Tipo de Atención y Precio -->
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-semibold text-slate-700 mb-3">Tipo de Atención</label>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+                                    <label class="cursor-pointer w-full">
+                                        <input type="radio" value="mesa" x-model="form.tipoAtencion" class="peer sr-only">
+                                        <div class="rounded-xl border-2 border-slate-200 px-3 py-3 md:px-4 hover:bg-slate-50 peer-checked:border-primary peer-checked:bg-secondary transition-all">
+                                            <div class="font-bold text-slate-800 flex justify-between items-center text-sm md:text-base">En Mesa <span>S/ 11.00</span></div>
+                                            <p class="text-xs text-slate-500 mt-1">Consumo en local</p>
+                                        </div>
+                                    </label>
+                                    <label class="cursor-pointer w-full">
+                                        <input type="radio" value="delivery_quebrada" x-model="form.tipoAtencion" class="peer sr-only">
+                                        <div class="rounded-xl border-2 border-slate-200 px-3 py-3 md:px-4 hover:bg-slate-50 peer-checked:border-primary peer-checked:bg-secondary transition-all">
+                                            <div class="font-bold text-slate-800 flex justify-between items-center text-sm md:text-base">La Quebrada <span>S/ 14.00</span></div>
+                                            <p class="text-xs text-slate-500 mt-1">Delivery (S/ 12+2)</p>
+                                        </div>
+                                    </label>
+                                    <label class="cursor-pointer w-full">
+                                        <input type="radio" value="delivery_sanbenito" x-model="form.tipoAtencion" class="peer sr-only">
+                                        <div class="rounded-xl border-2 border-slate-200 px-3 py-3 md:px-4 hover:bg-slate-50 peer-checked:border-primary peer-checked:bg-secondary transition-all">
+                                            <div class="font-bold text-slate-800 flex justify-between items-center text-sm md:text-base">San Benito <span>S/ 15.00</span></div>
+                                            <p class="text-xs text-slate-500 mt-1">Delivery (S/ 12+3)</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- Opción Extra "Recojo" -->
+                            <div class="md:col-span-2 -mt-4 mb-2" x-show="form.tipoAtencion !== 'mesa'">
+                                <label class="flex items-center gap-3 cursor-pointer p-4 border border-orange-200 bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors">
+                                    <input type="checkbox" x-model="form.isRecojo" class="w-5 h-5 text-primary border-slate-300 rounded outline-none accent-primary">
+                                    <div>
+                                        <div class="font-bold text-slate-800">✅ El cliente vendrá a recogerlo al local</div>
+                                        <p class="text-xs text-orange-700 mt-1">No se cobrará el adicional de delivery (Precio base de menú para llevar: S/ 12.00)</p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <!-- Elección de Menú -->
+                            <div class="md:col-span-2 p-4 md:p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                                <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-bowl-food text-primary"></i> Selección de Comida</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-semibold text-slate-700 mb-2">Entrada</label>
+                                        <select x-model="form.entrada" required class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all bg-white">
+                                            <option value="" disabled>Seleccione una entrada...</option>
+                                            <template x-for="item in entradas" :key="item">
+                                                <option :value="item" x-text="item"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-semibold text-slate-700 mb-2">Segundo</label>
+                                        <select x-model="form.segundo" required class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all bg-white">
+                                            <option value="" disabled>Seleccione un segundo...</option>
+                                            <template x-for="item in segundos" :key="item">
+                                                <option :value="item" x-text="item"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="md:col-span-2 mt-2 pt-4 border-t border-slate-200">
+                                        <label class="block text-sm font-semibold text-slate-700 mb-2">Entrada Adicional (+ S/ 5.00) <span class="font-normal text-slate-500 text-xs">Opcional</span></label>
+                                        <select x-model="form.entradaAdicional" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all bg-white">
+                                            <option value="">(Ninguna)</option>
+                                            <template x-for="item in entradas" :key="item">
+                                                <option :value="item" x-text="item"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                </div>
+                                <p x-show="entradas.length === 0 || segundos.length === 0" class="text-sm border-l-4 border-yellow-400 bg-yellow-50 p-2 text-yellow-700 mt-4 rounded-r-lg">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Aún no has configurado el menú del día. Ve a la sección "Configurar Menú".
+                                </p>
+                            </div>
+
+                            <!-- Pago y Observaciones -->
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-2">Tipo de Pago</label>
+                                <select x-model="form.tipoPago" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all">
+                                    <option value="Efectivo">Efectivo</option>
+                                    <option value="Yape">Yape</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-2">¿Tiene Sencillo? (Si paga en efectivo)</label>
+                                <input type="text" x-model="form.tieneSencillo" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-slate-400" placeholder="Ej. Paga con 50, Sí, No...">
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-semibold text-slate-700 mb-2">Referencia / Dirección de Delivery / Notas</label>
+                                <textarea x-model="form.referencia" rows="2" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-slate-400" placeholder="Alergias, dirección exacta, referencias..."></textarea>
+                            </div>
+
+                        </div>
+
+                        <!-- Footer Formulario -->
+                        <div class="flex flex-col md:flex-row items-center justify-between pt-6 border-t border-slate-200 mt-6 gap-4">
+                            <div class="text-3xl font-black text-slate-800 w-full md:w-auto text-center md:text-left bg-slate-50 md:bg-transparent py-4 md:py-0 rounded-2xl border border-slate-100 md:border-0">
+                                Total: <span class="text-primary" x-text="'S/ ' + precioTotal.toFixed(2)"></span>
+                            </div>
+                            <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                                <button type="button" x-show="modoEdicion" @click="cancelarEdicion" class="w-full sm:w-auto text-slate-500 hover:text-slate-700 font-semibold px-4 py-3 md:py-2 hover:bg-slate-100 rounded-xl transition-all border border-slate-200 md:border-0">Cancelar</button>
+                                <button type="submit" :disabled="isSubmitting" class="w-full sm:w-auto bg-primary hover:bg-orange-700 text-white font-bold py-4 md:py-3 px-8 rounded-xl shadow-lg shadow-orange-200 transition-all transform hover:-translate-y-1 disabled:opacity-70 flex justify-center items-center gap-2 text-lg md:text-base">
+                                    <span x-show="!isSubmitting"><i class="fa-solid fa-check"></i> <span x-text="modoEdicion ? 'Actualizar Pedido' : 'Registrar y Guardar'"></span></span>
+                                    <span x-show="isSubmitting"><i class="fa-solid fa-spinner fa-spin"></i> Guardando...</span>
+                                </button>
+                            </div>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+
+            <!-- Vista: Pedidos -->
+            <div x-cloak x-show="tab === 'pedidos'" x-transition.opacity class="p-4 md:p-8 max-w-6xl mx-auto w-full">
+                <div class="mb-6 md:mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+                    <div>
+                        <h2 class="text-2xl md:text-3xl font-bold text-slate-800">Lista de Pedidos</h2>
+                        <p class="text-sm md:text-base text-slate-500 mt-1 md:mt-2">Historial de pedidos registrados el día de hoy.</p>
+                    </div>
+                    <!-- Buscador -->
+                    <div class="relative w-full sm:w-72">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                            <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+                        </div>
+                        <input type="text" x-model="busqueda" class="w-full bg-white border border-slate-300 text-slate-800 text-sm rounded-xl focus:ring-primary focus:border-primary outline-none block pl-10 px-4 py-2.5 shadow-[0_2px_10px_rgba(0,0,0,0.02)] transition-all placeholder:text-slate-400" placeholder="Buscar por cliente...">
+                    </div>
+                </div>
+
+                <div x-show="pedidosFiltrados.length > 0">
+                    <!-- Vista de Tabla (Solo Desktop) -->
+                    <div class="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden max-w-full">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse min-w-[700px]">
+                                <thead>
+                                    <tr class="bg-slate-50 text-slate-600 text-sm border-b border-slate-200 whitespace-nowrap">
+                                        <th class="p-4 font-semibold">Cliente</th>
+                                        <th class="p-4 font-semibold w-48">Menú</th>
+                                        <th class="p-4 font-semibold">Atención</th>
+                                        <th class="p-4 font-semibold">Pago</th>
+                                        <th class="p-4 font-semibold">Total</th>
+                                        <th class="p-4 font-semibold">Fecha</th>
+                                        <th class="p-4 font-semibold">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="pedido in pedidosFiltrados" :key="pedido.id">
+                                        <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                                            <td class="p-4">
+                                                <div class="font-bold text-slate-800" x-text="pedido.nombre"></div>
+                                                <div class="text-xs text-slate-500" x-text="pedido.apellido"></div>
+                                            </td>
+                                            <td class="p-4">
+                                                <div class="text-sm"><span class="font-semibold text-slate-700">E:</span> <span x-text="pedido.entrada"></span></div>
+                                                <div class="text-sm"><span class="font-semibold text-slate-700">S:</span> <span x-text="pedido.segundo"></span></div>
+                                                <div x-show="pedido.entradaAdicional" class="text-[11px] text-orange-600 font-bold bg-orange-50 px-2 py-0.5 rounded inline-block mt-1 border border-orange-100"><i class="fa-solid fa-plus text-[9px]"></i> Extra: <span x-text="pedido.entradaAdicional"></span></div>
+                                            </td>
+                                            <td class="p-4">
+                                                <span class="inline-block px-2 py-1 text-xs font-bold rounded-md bg-blue-50 text-blue-700" 
+                                                      x-text="pedido.tipoDisplay || (pedido.tipoAtencion === 'mesa' ? 'En Mesa' : (pedido.tipoAtencion === 'delivery_quebrada' ? 'Delivery La Quebrada' : 'Delivery San Benito'))">
+                                                </span>
+                                                <div class="text-xs text-slate-500 mt-1 truncate w-32" :title="pedido.referencia" x-text="pedido.referencia || 'Sin ref.'"></div>
+                                            </td>
+                                            <td class="p-4">
+                                                <div class="text-sm font-semibold px-3 py-1 inline-block rounded-lg shadow-sm font-bold text-center w-full" 
+                                                     :class="{'bg-purple-600 text-white': pedido.tipoPago === 'Yape', 'bg-yellow-400 text-yellow-900 border border-yellow-500': pedido.tipoPago === 'Efectivo', 'text-slate-800': pedido.tipoPago !== 'Yape' && pedido.tipoPago !== 'Efectivo'}" 
+                                                     x-text="pedido.tipoPago"></div>
+                                                <div class="text-[10px] text-slate-500 mt-2 font-medium bg-slate-100 px-2 py-1 rounded" x-show="pedido.tieneSencillo" x-text="'Sencillo: '+pedido.tieneSencillo"></div>
+                                            </td>
+                                            <td class="p-4">
+                                                <div class="font-bold text-primary" x-text="'S/ ' + pedido.total.toFixed(2)"></div>
+                                            </td>
+                                            <td class="p-4 text-xs text-slate-500" x-text="pedido.fecha"></td>
+                                            <td class="p-4 flex gap-1">
+                                                <button @click="verPedido(pedido)" class="text-blue-500 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition-colors" title="Ver pedido">
+                                                    <i class="fa-solid fa-eye"></i>
+                                                </button>
+                                                <button @click="cargarPedidoParaEditar(pedido)" class="text-orange-500 hover:text-orange-700 p-2 rounded-lg hover:bg-orange-50 transition-colors" title="Editar pedido">
+                                                    <i class="fa-solid fa-pencil"></i>
+                                                </button>
+                                                <button @click="eliminarPedido(pedido.id)" class="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors" title="Eliminar pedido individual">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Vista de Tarjetas (Solo Móvil) -->
+                    <div class="md:hidden flex flex-col gap-4">
+                        <template x-for="pedido in pedidosFiltrados" :key="pedido.id">
+                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                                <div class="flex justify-between items-start mb-3">
+                                    <div>
+                                        <div class="font-bold text-slate-800 text-lg" x-text="pedido.nombre"></div>
+                                        <div class="text-xs text-slate-500" x-text="pedido.apellido"></div>
+                                    </div>
+                                    <div class="font-black text-primary text-xl bg-orange-50 px-3 py-1 rounded-xl" x-text="'S/ ' + pedido.total.toFixed(2)"></div>
+                                </div>
+                                
+                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-3 space-y-1">
+                                    <div class="text-sm"><span class="font-semibold text-slate-700">E:</span> <span class="text-slate-800" x-text="pedido.entrada"></span></div>
+                                    <div class="text-sm"><span class="font-semibold text-slate-700">S:</span> <span class="text-slate-800" x-text="pedido.segundo"></span></div>
+                                    <div x-show="pedido.entradaAdicional" class="text-[11px] text-orange-600 font-bold bg-orange-100 px-2 py-0.5 mt-1 rounded inline-block"><i class="fa-solid fa-plus"></i> Extra: <span x-text="pedido.entradaAdicional"></span></div>
+                                </div>
+
+                                <div x-show="pedido.referencia" class="mb-3 text-xs bg-yellow-50 text-yellow-800 border border-yellow-200 p-2 rounded-lg">
+                                    <span class="font-bold">Notas:</span> <span x-text="pedido.referencia"></span>
+                                </div>
+
+                                <div class="flex flex-wrap gap-2 mb-4">
+                                    <span class="px-2 py-1 text-[11px] font-bold rounded-md bg-blue-50 text-blue-700" 
+                                          x-text="pedido.tipoDisplay || (pedido.tipoAtencion === 'mesa' ? 'En Mesa' : (pedido.tipoAtencion === 'delivery_quebrada' ? 'Delivery La Quebrada' : 'Delivery San Benito'))">
+                                    </span>
+                                    <span class="px-2 py-1 text-[11px] font-bold rounded-md flex items-center gap-1"
+                                          :class="{'bg-purple-100 text-purple-700': pedido.tipoPago === 'Yape', 'bg-yellow-100 text-yellow-800 border border-yellow-300': pedido.tipoPago === 'Efectivo', 'bg-slate-100 text-slate-800': pedido.tipoPago !== 'Yape' && pedido.tipoPago !== 'Efectivo'}">
+                                          <span x-text="pedido.tipoPago"></span>
+                                          <span x-show="pedido.tieneSencillo" class="opacity-70 font-normal"> (Sencillo: <span x-text="pedido.tieneSencillo"></span>)</span>
+                                    </span>
+                                </div>
+
+                                <div class="flex justify-between items-center pt-3 border-t border-slate-100">
+                                    <span class="text-[10px] text-slate-400 font-medium tracking-wide" x-text="pedido.fecha.split(' ')[1] || pedido.fecha"></span>
+                                    
+                                    <div class="flex gap-2">
+                                        <button @click="verPedido(pedido)" class="text-blue-500 hover:bg-blue-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors"><i class="fa-solid fa-eye text-sm"></i></button>
+                                        <button @click="cargarPedidoParaEditar(pedido)" class="text-orange-500 hover:bg-orange-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors"><i class="fa-solid fa-pencil text-sm"></i></button>
+                                        <button @click="eliminarPedido(pedido.id)" class="text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors"><i class="fa-solid fa-trash text-sm"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Estado Vacío -->
+                <div x-show="pedidosFiltrados.length === 0" class="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-slate-200 p-12 flex flex-col items-center justify-center text-slate-500 mt-2">
+                    <i class="fa-solid fa-inbox text-5xl mb-4 opacity-20"></i>
+                    <p class="text-lg text-center font-medium" x-text="pedidos.length > 0 ? 'No se encontraron resultados para la búsqueda.' : 'No hay pedidos registrados todavía.'"></p>
+                </div>
+            </div>
+
+            <!-- Vista: Estadísticas -->
+            <div x-cloak x-show="tab === 'estadisticas'" x-transition.opacity class="p-4 md:p-8 max-w-6xl mx-auto w-full">
+                <div class="mb-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-800">Estadísticas del Menú de Hoy</h2>
+                    <p class="text-sm md:text-base text-slate-500 mt-2 mb-6 md:mb-8">Resumen financiero y número total de pedidos del día.</p>
+                    
+                    <!-- Tarjetas de Estadísticas -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex items-center gap-4">
+                            <div class="bg-orange-100 p-5 rounded-2xl text-primary text-3xl"><i class="fa-solid fa-sack-dollar"></i></div>
+                            <div>
+                                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Ventas Totales</p>
+                                <p class="text-3xl font-black text-slate-800" x-text="'S/ ' + gananciaTotal.toFixed(2)"></p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex items-center gap-4">
+                            <div class="bg-purple-100 p-5 rounded-2xl text-purple-600 text-3xl"><i class="fa-solid fa-mobile-screen"></i></div>
+                            <div>
+                                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Ingresos Yape</p>
+                                <p class="text-2xl font-bold text-slate-800" x-text="'S/ ' + yapeStats.total.toFixed(2)"></p>
+                                <p class="text-sm font-semibold text-slate-500 bg-slate-50 px-2 py-0.5 rounded inline-block mt-1 border border-slate-100" x-text="yapeStats.count + ' Pedidos'"></p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex items-center gap-4">
+                            <div class="bg-yellow-100 border border-yellow-200 p-5 rounded-2xl text-yellow-600 text-3xl"><i class="fa-solid fa-money-bill-wave"></i></div>
+                            <div>
+                                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Ingresos Efectivo</p>
+                                <p class="text-2xl font-bold text-slate-800" x-text="'S/ ' + efectivoStats.total.toFixed(2)"></p>
+                                <p class="text-sm font-semibold text-slate-500 bg-slate-50 px-2 py-0.5 rounded inline-block mt-1 border border-slate-100" x-text="efectivoStats.count + ' Pedidos'"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-red-50 rounded-2xl border border-red-100 p-8 flex flex-col md:flex-row items-center justify-between mt-10 shadow-sm gap-4">
+                        <div>
+                            <h4 class="font-bold text-red-800 text-xl"><i class="fa-solid fa-circle-exclamation"></i> Fin de Jornada Laboral</h4>
+                            <p class="text-red-700 text-sm mt-1">Ésta acción borrará permanentemente todos los pedidos registrados y reiniciará las presentes estadísticas a cero.</p>
+                        </div>
+                        <button @click="reiniciarPedidos" class="bg-white text-red-600 border-2 border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 shadow-sm px-6 py-4 rounded-xl font-black transition-all flex items-center gap-2 shrink-0">
+                            <i class="fa-solid fa-rotate-right"></i> Reiniciar Datos del Día
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vista: Configurar Menú -->
+            <div x-cloak x-show="tab === 'menu'" x-transition.opacity class="p-4 md:p-8 max-w-4xl mx-auto w-full">
+                <div class="mb-6 md:mb-8">
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-800">Menú del Día</h2>
+                    <p class="text-sm md:text-base text-slate-500 mt-2">Configura las entradas y segundos disponibles para el día de hoy.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                    
+                    <!-- Entradas -->
+                    <div class="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-slate-200 p-5 md:p-6 flex flex-col">
+                        <h3 class="text-xl font-bold text-slate-800 border-b pb-3 mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-carrot text-primary"></i> Entradas
+                        </h3>
+                        
+                        <div class="flex flex-col sm:flex-row gap-3 mb-5">
+                            <input type="text" x-model="nuevaEntrada" @keydown.enter="agregarEntrada" placeholder="Ej. Sopa a la minuta" class="flex-1 min-w-0 px-4 py-3 sm:py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all">
+                            <button @click="agregarEntrada" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-3 sm:py-2 rounded-xl transition-all font-bold tracking-wide shadow-sm">
+                                Agregar
+                            </button>
+                        </div>
+                        
+                        <div class="flex-1 overflow-y-auto max-h-96">
+                            <ul class="space-y-2">
+                                <template x-for="(item, index) in entradas" :key="index">
+                                    <li class="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                        <span class="font-medium text-slate-700" x-text="item"></span>
+                                        <button @click="eliminarEntrada(index)" class="text-red-500 hover:bg-red-100 p-1.5 rounded-md transition-colors">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                    </li>
+                                </template>
+                                <li x-show="entradas.length === 0" class="text-center text-slate-400 py-4 text-sm">
+                                    No hay entradas registradas.
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Segundos -->
+                    <div class="bg-white rounded-2xl md:rounded-3xl shadow-sm border border-slate-200 p-5 md:p-6 flex flex-col">
+                        <h3 class="text-xl font-bold text-slate-800 border-b pb-3 mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-drumstick-bite text-primary"></i> Segundos
+                        </h3>
+                        
+                        <div class="flex flex-col sm:flex-row gap-3 mb-5">
+                            <input type="text" x-model="nuevoSegundo" @keydown.enter="agregarSegundo" placeholder="Ej. Lomo Saltado" class="flex-1 min-w-0 px-4 py-3 sm:py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all">
+                            <button @click="agregarSegundo" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-3 sm:py-2 rounded-xl transition-all font-bold tracking-wide shadow-sm">
+                                Agregar
+                            </button>
+                        </div>
+                        
+                        <div class="flex-1 overflow-y-auto max-h-96">
+                            <ul class="space-y-2">
+                                <template x-for="(item, index) in segundos" :key="index">
+                                    <li class="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                        <span class="font-medium text-slate-700" x-text="item"></span>
+                                        <button @click="eliminarSegundo(index)" class="text-red-500 hover:bg-red-100 p-1.5 rounded-md transition-colors">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                    </li>
+                                </template>
+                                <li x-show="segundos.length === 0" class="text-center text-slate-400 py-4 text-sm">
+                                    No hay segundos registrados.
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </main>
+        
+        <!-- Notificación Toast UI (Simplificado) -->
+        <div x-show="toast.show" x-transition class="fixed bottom-4 right-4 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 z-50">
+            <i class="fa-solid fa-circle-check text-green-400"></i>
+            <span x-text="toast.message"></span>
+        </div>
+
+    </div>
+
+    <!-- Script de lógica con AlpineJS -->
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('appData', () => ({
+                tab: 'registrar',
+                toast: { show: false, message: '' },
+                
+                // Menú
+                entradas: JSON.parse(localStorage.getItem('restaurante_entradas')) || [],
+                segundos: JSON.parse(localStorage.getItem('restaurante_segundos')) || [],
+                nuevaEntrada: '',
+                nuevoSegundo: '',
+                
+                // Pedidos Locales
+                pedidos: JSON.parse(localStorage.getItem('restaurante_pedidos')) || [],
+                busqueda: '',
+                
+                isSubmitting: false,
+
+                // Formulario
+                form: {
+                    nombre: '',
+                    apellido: '',
+                    tipoAtencion: 'mesa',
+                    isRecojo: false,
+                    entrada: '',
+                    segundo: '',
+                    entradaAdicional: '',
+                    tipoPago: 'Efectivo',
+                    tieneSencillo: '',
+                    referencia: ''
+                },
+                modoEdicion: false,
+                pedidoEditandoId: null,
+
+                // Lógica de cálculo
+                get precioTotal() {
+                    // Precios definidos:
+                    // Mesa = 11
+                    // Delivery (Base 12) + Quebrada (2) = 14
+                    // Delivery (Base 12) + San Benito (3) = 15
+                    let total = 0;
+                    if (this.form.tipoAtencion === 'mesa') {
+                        total = 11.00;
+                    } else if (this.form.isRecojo) {
+                        total = 12.00;
+                    } else if (this.form.tipoAtencion === 'delivery_quebrada') {
+                        total = 14.00;
+                    } else if (this.form.tipoAtencion === 'delivery_sanbenito') {
+                        total = 15.00;
+                    }
+                    
+                    if (this.form.entradaAdicional) {
+                        total += 5.00;
+                    }
+                    return total;
+                },
+
+                get gananciaTotal() {
+                    return this.pedidos.reduce((sum, pedido) => sum + parseFloat(pedido.total), 0);
+                },
+
+                get yapeStats() {
+                    const obj = this.pedidos.filter(p => p.tipoPago === 'Yape');
+                    return { count: obj.length, total: obj.reduce((s, p) => s + parseFloat(p.total), 0) };
+                },
+
+                get efectivoStats() {
+                    const obj = this.pedidos.filter(p => p.tipoPago === 'Efectivo');
+                    return { count: obj.length, total: obj.reduce((s, p) => s + parseFloat(p.total), 0) };
+                },
+
+                get pedidosFiltrados() {
+                    if (!this.busqueda.trim()) return this.pedidos;
+                    const val = this.busqueda.toLowerCase().trim();
+                    return this.pedidos.filter(p => 
+                        p.nombre.toLowerCase().includes(val) || 
+                        (p.apellido && p.apellido.toLowerCase().includes(val))
+                    );
+                },
+
+                showToast(msg) {
+                    this.toast.message = msg;
+                    this.toast.show = true;
+                    setTimeout(() => { this.toast.show = false; }, 3000);
+                },
+
+                // Acciones Menú
+                agregarEntrada() {
+                    if (this.nuevaEntrada.trim()) {
+                        this.entradas.push(this.nuevaEntrada.trim());
+                        this.nuevaEntrada = '';
+                        this.guardarMenu();
+                    }
+                },
+                eliminarEntrada(index) {
+                    this.entradas.splice(index, 1);
+                    this.guardarMenu();
+                },
+                agregarSegundo() {
+                    if (this.nuevoSegundo.trim()) {
+                        this.segundos.push(this.nuevoSegundo.trim());
+                        this.nuevoSegundo = '';
+                        this.guardarMenu();
+                    }
+                },
+                eliminarSegundo(index) {
+                    this.segundos.splice(index, 1);
+                    this.guardarMenu();
+                },
+                guardarMenu() {
+                    localStorage.setItem('restaurante_entradas', JSON.stringify(this.entradas));
+                    localStorage.setItem('restaurante_segundos', JSON.stringify(this.segundos));
+                },
+
+                // Envío de Pedido
+                registrarPedido() {
+                    if (!this.form.entrada || !this.form.segundo) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Faltan datos',
+                            text: "Debe seleccionar una entrada y un segundo. Si no hay opciones, vaya a 'Configurar Menú'.",
+                            confirmButtonColor: '#ea580c',
+                            customClass: { popup: 'rounded-3xl', confirmButton: 'rounded-xl px-6 py-2' }
+                        });
+                        return;
+                    }
+
+                    this.isSubmitting = true;
+                    
+                    const fec = new Date();
+                    const fechaStr = fec.toLocaleDateString() + ' ' + fec.toLocaleTimeString();
+                    const tipoDisplay = this.form.tipoAtencion === 'mesa' ? 'En Mesa' 
+                                      : (this.form.isRecojo ? 'Para Recoger en Local' 
+                                      : (this.form.tipoAtencion === 'delivery_quebrada' ? 'Delivery La Quebrada' : 'Delivery San Benito'));
+
+                    const nuevoPedido = {
+                        id: this.modoEdicion ? this.pedidoEditandoId : Date.now().toString(),
+                        fecha: fechaStr,
+                        nombre: this.form.nombre,
+                        apellido: this.form.apellido,
+                        tipoAtencion: this.form.tipoAtencion,
+                        tipoDisplay: tipoDisplay,
+                        entrada: this.form.entrada,
+                        segundo: this.form.segundo,
+                        entradaAdicional: this.form.entradaAdicional,
+                        tipoPago: this.form.tipoPago,
+                        tieneSencillo: this.form.tieneSencillo,
+                        referencia: this.form.referencia,
+                        total: this.precioTotal
+                    };
+
+                    if (this.modoEdicion) {
+                        const idx = this.pedidos.findIndex(p => p.id === this.pedidoEditandoId);
+                        if (idx > -1) {
+                            nuevoPedido.fecha = this.pedidos[idx].fecha; // Mantiene fecha original
+                            this.pedidos[idx] = nuevoPedido;
+                        }
+                        this.showToast('¡Pedido actualizado correctamente!');
+                        this.modoEdicion = false;
+                        this.pedidoEditandoId = null;
+                    } else {
+                        this.pedidos.unshift(nuevoPedido);
+                        this.showToast('¡Pedido registrado correctamente!');
+                    }
+
+                    localStorage.setItem('restaurante_pedidos', JSON.stringify(this.pedidos));
+                    this.isSubmitting = false;
+                    
+                    this.resetForm();
+                    this.tab = 'pedidos';
+                },
+
+                resetForm() {
+                    this.form = {
+                        nombre: '',
+                        apellido: '',
+                        entrada: '',
+                        segundo: '',
+                        entradaAdicional: '',
+                        referencia: '',
+                        tieneSencillo: '',
+                        tipoAtencion: 'mesa',
+                        isRecojo: false,
+                        tipoPago: 'Efectivo'
+                    };
+                },
+
+                cargarPedidoParaEditar(pedido) {
+                    this.modoEdicion = true;
+                    this.pedidoEditandoId = pedido.id;
+                    this.form = {
+                        nombre: pedido.nombre,
+                        apellido: pedido.apellido || '',
+                        tipoAtencion: pedido.tipoAtencion,
+                        isRecojo: pedido.tipoDisplay === 'Para Recoger en Local',
+                        entrada: pedido.entrada,
+                        segundo: pedido.segundo,
+                        entradaAdicional: pedido.entradaAdicional || '',
+                        tipoPago: pedido.tipoPago,
+                        tieneSencillo: pedido.tieneSencillo || '',
+                        referencia: pedido.referencia || ''
+                    };
+                    this.tab = 'registrar';
+                },
+
+                cancelarEdicion() {
+                    this.modoEdicion = false;
+                    this.pedidoEditandoId = null;
+                    this.resetForm();
+                    this.tab = 'pedidos';
+                },
+
+                verPedido(pedido) {
+                    const htmlContent = `
+                        <div class="text-left bg-white p-4 rounded-xl border border-slate-100 shadow-sm mt-3">
+                            <div class="flex justify-between items-center border-b border-slate-200 pb-3 mb-3">
+                                <div>
+                                    <h4 class="font-bold text-slate-800 text-lg">${pedido.nombre} ${pedido.apellido || ''}</h4>
+                                    <p class="text-sm text-slate-500">${pedido.fecha}</p>
+                                </div>
+                                <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">${pedido.tipoDisplay}</span>
+                            </div>
+                            
+                            <div class="space-y-2 mb-4">
+                                <div class="flex items-start gap-2">
+                                    <i class="fa-solid fa-carrot text-primary mt-1 w-5"></i> 
+                                    <div>
+                                        <p class="text-xs text-slate-500 font-bold uppercase">Entrada</p>
+                                        <p class="text-sm font-semibold text-slate-800">${pedido.entrada}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <i class="fa-solid fa-drumstick-bite text-primary mt-1 w-5"></i> 
+                                    <div>
+                                        <p class="text-xs text-slate-500 font-bold uppercase">Segundo</p>
+                                        <p class="text-sm font-semibold text-slate-800">${pedido.segundo}</p>
+                                    </div>
+                                </div>
+                                ${pedido.entradaAdicional ? `
+                                <div class="flex items-start gap-2 pt-3 mt-1 border-t border-dashed border-slate-200">
+                                    <i class="fa-solid fa-plus text-primary mt-1 w-5"></i> 
+                                    <div>
+                                        <p class="text-xs text-slate-500 font-bold uppercase">Entrada Adicional (+ S/ 5.00)</p>
+                                        <p class="text-sm font-semibold text-slate-800">${pedido.entradaAdicional}</p>
+                                    </div>
+                                </div>
+                                ` : ''}
+                            </div>
+                            
+                            <div class="bg-slate-50 p-3 rounded-lg flex justify-between items-center mb-4 border border-slate-100">
+                                <div>
+                                    <p class="text-xs text-slate-500 font-bold uppercase">Pago en ${pedido.tipoPago}</p>
+                                    ${pedido.tieneSencillo ? `<p class="text-xs text-slate-600">Sencillo: ${pedido.tieneSencillo}</p>` : ''}
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xs text-slate-500 font-bold uppercase">Total</p>
+                                    <p class="text-xl font-black text-primary">S/ ${pedido.total.toFixed(2)}</p>
+                                </div>
+                            </div>
+
+                            ${pedido.referencia ? `
+                            <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-200 text-sm text-yellow-800 mt-2">
+                                <span class="font-bold"><i class="fa-solid fa-note-sticky"></i> Notas:</span> ${pedido.referencia}
+                            </div>
+                            ` : ''}
+                        </div>
+                    `;
+
+                    Swal.fire({
+                        title: '<strong>Detalle del Pedido</strong>',
+                        html: htmlContent,
+                        showCloseButton: true,
+                        focusConfirm: false,
+                        confirmButtonText: '<i class="fa-solid fa-thumbs-up"></i> Genial',
+                        confirmButtonColor: '#ea580c',
+                        customClass: {
+                            popup: 'rounded-3xl',
+                            confirmButton: 'rounded-xl shadow-lg px-6 py-2 transition-all'
+                        }
+                    });
+                },
+
+                eliminarPedido(id) {
+                    Swal.fire({
+                        title: '¿Eliminar pedido?',
+                        text: "Esta acción borrará el pedido de la vista actual.",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#ef4444',
+                        cancelButtonColor: '#94a3b8',
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar',
+                        customClass: {
+                            popup: 'rounded-3xl',
+                            confirmButton: 'rounded-xl px-4 py-2',
+                            cancelButton: 'rounded-xl px-4 py-2'
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            this.pedidos = this.pedidos.filter(p => p.id !== id);
+                            localStorage.setItem('restaurante_pedidos', JSON.stringify(this.pedidos));
+                            this.showToast('Pedido eliminado.');
+                        }
+                    });
+                },
+
+                reiniciarPedidos() {
+                    if (this.pedidos.length === 0) {
+                        Swal.fire({ icon: 'info', title: 'Aviso', text: 'Ya no hay pedidos para borrar.', confirmButtonColor: '#ea580c' });
+                        return;
+                    }
+                    Swal.fire({
+                        title: '¿Reiniciar TODOS los pedidos?',
+                        html: "<b>ADVERTENCIA:</b> Se borrará todo el registro local del día. <br><br>¡Esta acción es irreversible y suele hacerse al finalizar tu jornada de trabajo!",
+                        icon: 'error',
+                        showCancelButton: true,
+                        confirmButtonColor: '#dc2626',
+                        cancelButtonColor: '#94a3b8',
+                        confirmButtonText: 'Sí, borrar todo',
+                        cancelButtonText: 'Cancelar',
+                        customClass: {
+                            popup: 'rounded-3xl',
+                            confirmButton: 'rounded-xl px-4 py-2 font-bold',
+                            cancelButton: 'rounded-xl px-4 py-2'
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            this.pedidos = [];
+                            localStorage.setItem('restaurante_pedidos', JSON.stringify(this.pedidos));
+                            this.showToast('Todos los pedidos locales han sido borrados.');
+                        }
+                    });
+                }
+            }));
+        });
+    </script>
+</body>
+</html>
